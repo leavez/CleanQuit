@@ -32,7 +32,9 @@ private var _exitFromTrap = false
 private func _killAllChildrenProcesses(signal: Int32) {
     let selfPid = getpid()
     let r = SwiftShell.run(bash: "pkill -\(signal) -P \(selfPid)")
-    if !r.succeeded {
+    // Exit code 1 means `No processes were matched` @see `man pkill`
+    // If it has no subprocess, just get code 1, and it's ok.
+    if !r.succeeded && r.exitcode != 1 {
         print("Killing all children processes failed. CODE: \(r.exitcode) ERROR: \(r.stderror)")
     }
 }
