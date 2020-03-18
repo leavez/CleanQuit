@@ -22,44 +22,58 @@ public struct CleanQuit {
                 _killAllChildrenProcesses(signal: signal)
             }
         })
-        
-        // check depedency
-        let pkillFilePath = "/usr/bin/pkill"
-        if !FileManager.default.fileExists(atPath: pkillFilePath) {
-            fatalError("[ERROR] CleanQuit failed. `/usr/bin/pkill` not exit")
-        }
     }
     
 }
 
 private var _exitFromTrap = false
 
-private func _killAllChildrenProcesses(signal: Int32) {
+func _killAllChildrenProcesses(signal: Int32) {
+    
     let selfPid = getpid()
-    let pkillFilePath = "/usr/bin/pkill"
-    if !FileManager.default.fileExists(atPath: pkillFilePath) {
-        print("[ERROR] /usr/bin/pkill not exit")
+    
+    // find all children process ids recursively
+    let bashScript = """
+    pids=''
+    function recursiveFindChild() {
+        local parentPid=$1
+        for childId in $(pgrep -P $parentPid); do
+            # action
+            pids+="$childId,"
+            # recursive
+            recursiveFindChild $childId
+        done
     }
     
+    # recursive find the children processes
+    recursiveFindChild \(selfPid)
+    echo "$pids"
+    """
+    
+    let result = bash(bashScript)
+    if result.code == 0 {
+        let pids = result.output.trimmingCharacters(in: .whitespacesAndNewlines).split(separator: ",").filter({ $0.count > 0 }).compactMap({ Int32($0) })
+        for pid in pids.reversed() {
+            killpg(pid, signal)
+        }
+    }
+}
+
+func bash(_ script: String) -> (code: Int32, output:String) {
+    // exec shell
     let task = Process()
-    task.launchPath = pkillFilePath
-    task.arguments = ["-\(signal)", "-P", "\(selfPid)"]
+    task.launchPath = "/bin/bash"
+    task.arguments = ["-c", script]
+    
+    let pipe = Pipe()
+    task.standardOutput = pipe
     task.launch()
+
+    let data = pipe.fileHandleForReading.readDataToEndOfFile()
+    let output = String(data: data, encoding: .utf8) ?? ""
     task.waitUntilExit()
-    let code = task.terminationStatus
     
-    let reasons: [Int32: String] =
-        [0 : "One or more processes were matched.",
-         1 : "No processes were matched.",
-         2 : "Invalid options were specified on the command line.",
-         3 : "An internal error occurred."]
-    
-    // Exit code 1 means `No processes were matched` @see `man pkill`
-    // If it has no subprocess, just get code 1, and it's ok.
-    if code != 0 && code != 1 {
-        let reason = reasons[code] ?? "Unknow error"
-        print("Killing all children processes failed. CODE: \(code) EXPLAIN: \(reason)")
-    }
+    return (task.terminationStatus, output)
 }
 
 
