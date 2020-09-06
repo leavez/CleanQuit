@@ -4,11 +4,13 @@ import Signals
 public struct CleanQuit {
     
     /// Set to kill all children processes when main process ends
-    public static func enable() {
+    public static func enable(debug: bool = false) {
+        _debug = debug
         
         // Trap the signal
         // Although not all signals can be trapped, we just use all of them.
         Signals.trap(signals: [.hup,.int,.quit,.abrt,.kill,.alrm,.term,.pipe]) { signal in
+            debugPrint("Caught signal \(signal)")
             _killAllChildrenProcesses(signal: signal)
             _exitFromTrap = true
             // about the exit code https://unix.stackexchange.com/a/99117/397790
@@ -21,6 +23,7 @@ public struct CleanQuit {
                 let signal: Int32 = SIGTERM
                 _killAllChildrenProcesses(signal: signal)
             }
+            debugPrint("Final exit. Singal trapped: \(_exitFromTrap)")
         })
     }
     
@@ -77,3 +80,10 @@ func bash(_ script: String) -> (code: Int32, output:String) {
 }
 
 
+func debugPrint(_ message: String) {
+    if _debug {
+        print("[CleanQuit]: " + message)
+    }
+}
+
+var _debug = false
