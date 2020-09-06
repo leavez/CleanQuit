@@ -57,7 +57,7 @@ func _killAllChildrenProcesses(signal: Int32) {
     if result.code == 0 {
         let pids = result.output.trimmingCharacters(in: .whitespacesAndNewlines).split(separator: ",").filter({ $0.count > 0 }).compactMap({ Int32($0) })
         for pid in pids.reversed() {
-            killpg(pid, signal)
+            kill(pid, signal)
         }
     }
 }
