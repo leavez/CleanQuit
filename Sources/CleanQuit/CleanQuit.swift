@@ -4,7 +4,7 @@ import Signals
 public struct CleanQuit {
     
     /// Set to kill all children processes when main process ends
-    public static func enable(debug: bool = false) {
+    public static func enable(debug: Bool = false) {
         _debug = debug
         
         // Trap the signal
@@ -56,6 +56,7 @@ func _killAllChildrenProcesses(signal: Int32) {
     let result = bash(bashScript)
     if result.code == 0 {
         let pids = result.output.trimmingCharacters(in: .whitespacesAndNewlines).split(separator: ",").filter({ $0.count > 0 }).compactMap({ Int32($0) })
+        debugPrint("recursive child pids: \(pids)")
         for pid in pids.reversed() {
             kill(pid, signal)
         }
