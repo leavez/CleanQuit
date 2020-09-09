@@ -10,16 +10,23 @@ public struct CleanQuit {
         // Trap the signal
         // Although not all signals can be trapped, we just use all of them.
         Signals.trap(signals: [.hup,.int,.quit,.abrt,.kill,.alrm,.term,.pipe]) { signal in
+            if _killedOnce {
+                debugPrint("Skipped catch signal \(signal) due to killed once")
+                return
+            }
+            _killedOnce = true
+            _exitFromTrap = true
+            
             debugPrint("Caught signal \(signal)")
             _killAllChildrenProcesses(signal: signal)
-            _exitFromTrap = true
             // about the exit code https://unix.stackexchange.com/a/99117/397790
             exit(128 + signal)
         }
         
         // Before normal exit
         atexit({
-            if !_exitFromTrap {
+            if !_killedOnce {
+                _killedOnce = true
                 let signal: Int32 = SIGTERM
                 _killAllChildrenProcesses(signal: signal)
             }
@@ -30,6 +37,7 @@ public struct CleanQuit {
 }
 
 private var _exitFromTrap = false
+private var _killedOnce = false
 
 func _killAllChildrenProcesses(signal: Int32) {
     
