@@ -30,14 +30,21 @@ public struct CleanQuit {
                 let signal: Int32 = SIGTERM
                 _killAllChildrenProcesses(signal: signal)
             }
-            debugPrint("Final exit. Singal trapped: \(_exitFromTrap)")
+            debugPrint("Final exit. Signal trapped: \(_exitFromTrap)")
         })
+    }
+    
+    // Add a hook action after performing the kill action
+    // It can be called multiple times to add multiple hooks
+    public static func AfterKillHook(action: @escaping ()->Void) {
+        afterKillHooks.append(action)
     }
     
 }
 
 private var _exitFromTrap = false
 private var _killedOnce = false
+private var afterKillHooks: [()->Void] = []
 
 func _killAllChildrenProcesses(signal: Int32) {
     
@@ -45,6 +52,9 @@ func _killAllChildrenProcesses(signal: Int32) {
     debugPrint("recursive child pids: \(pids)")
     for pid in pids.reversed() {
         kill(pid, signal)
+    }
+    for hook in afterKillHooks {
+        hook()
     }
 }
 
