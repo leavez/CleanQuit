@@ -41,41 +41,37 @@ private var _killedOnce = false
 
 func _killAllChildrenProcesses(signal: Int32) {
     
-    let selfPid = getpid()
-    
-    // find all children process ids recursively
-    let bashScript = """
-    pids=''
-    function recursiveFindChild() {
-        local parentPid=$1
-        for childId in $(pgrep -P $parentPid); do
-            # action
-            pids+="$childId,"
-            # recursive
-            recursiveFindChild $childId
-        done
-    }
-    
-    # recursive find the children processes
-    recursiveFindChild \(selfPid)
-    echo "$pids"
-    """
-    
-    let result = bash(bashScript)
-    if result.code == 0 {
-        let pids = result.output.trimmingCharacters(in: .whitespacesAndNewlines).split(separator: ",").filter({ $0.count > 0 }).compactMap({ Int32($0) })
-        debugPrint("recursive child pids: \(pids)")
-        for pid in pids.reversed() {
-            kill(pid, signal)
-        }
+    let pids = findChildProcessIdsRecursively(pid: getpid())
+    debugPrint("recursive child pids: \(pids)")
+    for pid in pids.reversed() {
+        kill(pid, signal)
     }
 }
 
-func bash(_ script: String) -> (code: Int32, output:String) {
+// find all children process ids recursively
+func findChildProcessIdsRecursively(pid: Int32) -> [Int32] {
+    
+    func findRecursively(pid: String) -> [String] {
+        var out = [String]()
+        let result = exec("/usr/bin/pgrep", args: ["-P", pid])
+        if result.code == 0 {
+            let childIds = result.output.trimmingCharacters(in: .whitespacesAndNewlines).split(separator: "\n").map(String.init)
+            out += childIds
+            for c in childIds {
+                out += findRecursively(pid: c)
+            }
+        }
+        return out
+    }
+    
+    return findRecursively(pid: "\(pid)").compactMap(Int32.init)
+}
+
+func exec(_ executablePath: String, args: [String]) -> (code: Int32, output:String) {
     // exec shell
     let task = Process()
-    task.launchPath = "/bin/bash"
-    task.arguments = ["-c", script]
+    task.launchPath = executablePath
+    task.arguments = args
     
     let pipe = Pipe()
     task.standardOutput = pipe
