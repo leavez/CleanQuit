@@ -50,8 +50,8 @@ func _killAllChildrenProcesses(signal: Int32) {
     
     let pids = findChildProcessIdsRecursively(pid: getpid())
     debugPrint("recursive child pids: \(pids)")
-    for pid in pids.reversed() {
-        kill(pid, signal)
+    for pid in pids.reversed() { // use reversed to kill children firstly
+        killpg(pid, signal)
     }
     for hook in afterKillHooks {
         hook()
