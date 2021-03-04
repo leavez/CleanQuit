@@ -91,12 +91,19 @@ func exec(_ executablePath: String, args: [String]) -> (code: Int32, output:Stri
     
     let pipe = Pipe()
     task.standardOutput = pipe
+    
+    // waitUntilExit is vary slow. it involves the runlopp.
+    let group = DispatchGroup()
+    task.terminationHandler = { _ in
+        group.leave()
+    }
+    group.enter()
     task.launch()
 
     let data = pipe.fileHandleForReading.readDataToEndOfFile()
     let output = String(data: data, encoding: .utf8) ?? ""
-    task.waitUntilExit()
-    
+    group.wait()
+
     return (task.terminationStatus, output)
 }
 
