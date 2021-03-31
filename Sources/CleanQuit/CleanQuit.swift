@@ -53,7 +53,7 @@ func _killAllChildrenProcesses(signal: Int32) {
     for pid in pids.reversed() {
         kill(pid, signal)
     }
-    for hook in afterKillHooks {
+    for hook in afterKillHooks.reversed() { // FILO
         hook()
     }
 }
