@@ -3,17 +3,24 @@ import Signals
 
 public struct CleanQuit {
     
+    public typealias Signal = Int32
+    
+    public static let defaultCaptureSignals: [Signal] = [SIGHUP,SIGINT,SIGQUIT,SIGABRT,SIGKILL,SIGALRM,SIGTERM,SIGPIPE]
+    
     /// Set to kill all children processes when main process ends
     /// - Parameters:
     ///   - signalMapping: transform signal to another signal when propagate to recursive child process
     ///   - debug: show debug log
-    public static func enable(signalMapping: [Int32:Int32]? = nil , debug: Bool = false) {
+    public static func enable(handledSignals:[Signal] = defaultCaptureSignals,
+                              signalMapping: [Signal:Signal]? = nil,
+                              debug: Bool = false)
+    {
         _debug = debug
         _signalMapping = signalMapping
         
         // Trap the signal
         // Although not all signals can be trapped, we just use all of them.
-        Signals.trap(signals: [.hup,.int,.quit,.abrt,.kill,.alrm,.term,.pipe]) { signal in
+        Signals.trap(signals: handledSignals.map({ Signals.Signal.user(Int($0)) })) { signal in
             if _killedOnce {
                 debugPrint("Skipped catch signal \(signal) due to killed once")
                 return
