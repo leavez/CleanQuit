@@ -4,8 +4,12 @@ import Signals
 public struct CleanQuit {
     
     /// Set to kill all children processes when main process ends
-    public static func enable(debug: Bool = false) {
+    /// - Parameters:
+    ///   - signalMapping: transform signal to another signal when propagate to recursive child process
+    ///   - debug: show debug log
+    public static func enable(signalMapping: [Int32:Int32]? = nil , debug: Bool = false) {
         _debug = debug
+        _signalMapping = signalMapping
         
         // Trap the signal
         // Although not all signals can be trapped, we just use all of them.
@@ -45,8 +49,10 @@ public struct CleanQuit {
 private var _exitFromTrap = false
 private var _killedOnce = false
 private var afterKillHooks: [()->Void] = []
+private var _signalMapping: [Int32:Int32]?
 
 func _killAllChildrenProcesses(signal: Int32) {
+    let signal = _signalMapping?[signal] ?? signal
     
     let pids = findChildProcessIdsRecursively(pid: getpid())
     debugPrint("recursive child pids: \(pids)")
